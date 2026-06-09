@@ -2,16 +2,19 @@
 #include <raylib.h>
 using namespace std;
 
-Color Green = Color{173, 204, 95, 255};
-Color Dark_Green = Color{43, 51, 24, 255};
+int cellSize = 25; // Because we will move snake in to grid of 25 x 30 grid
+int cellCount = 30;
+
 int score = 0;
 
-int cellSize = 25;
-int cellCount = 30;
 int margin = 75;
+
+Color Green = Color{173, 204, 95, 255};
+Color Dark_Green = Color{43, 51, 24, 255};
 
 struct Node
 {
+
     int x, y;
     Node *next;
 };
@@ -22,35 +25,65 @@ public:
     int dirX = 1;
     int dirY = 0;
 
-    Node *head = new Node;
-    Node *tail = new Node;
+    Node *head;
+    Node *tail;
 
     Snake()
     {
-        Node *n1 = new Node{7 * cellSize, 7 * cellSize, NULL};
-        Node *n2 = new Node{6 * cellSize, 7 * cellSize, NULL};
-        Node *n3 = new Node{5 * cellSize, 7 * cellSize, NULL};
-
-        n1->next = n2;
-        n2->next = n3;
-
-        head = n1;
-        tail = n3;
+        head = new Node{margin + 7 * cellSize, margin + 7 * cellSize, NULL};
+        Node *body = new Node{margin + 6 * cellSize, margin + 7 * cellSize, NULL};
+        tail = new Node{margin + 5 * cellSize, margin + 7 * cellSize, NULL};
+        head->next = body;
+        body->next = tail;
+        tail->next = NULL;
     }
 
+public:
     void Draw()
     {
         Node *temp = head;
         while (temp != NULL)
         {
-            DrawRectangleRounded(
-                Rectangle{(float)temp->x, (float)temp->y, (float)cellSize, (float)cellSize},
-                0.5, 0, Dark_Green);
-
+            DrawRectangleRounded(Rectangle{(float)temp->x, (float)temp->y, (float)cellSize, (float)cellSize}, 0.5, 0, Dark_Green);
             temp = temp->next;
         }
     }
 
+    // Adding head that will help to move snake forward with the help of dirX and dirY
+    // if *dirX = 1,dirY = 0 then it will multiply with cellSize and addd in x of head that will create new head just after the previous head
+    // by adding exact 1 cell size and it will move forward
+    void AddHead()
+    {
+        int newX = head->x + dirX * cellSize;
+        int newY = head->y + dirY * cellSize;
+
+        if (newX > (cellCount * cellSize) + cellSize * 2) // Because of two cells we have to multiply it with 2 skip 2 cells more
+        {
+            newX = margin;
+        }
+
+        if (newX < margin)
+        {
+            newX = (cellCount * cellSize) + cellSize * 2;
+        }
+
+        if (newY > (cellCount * cellSize) + cellSize * 2)
+        {
+            newY = margin;
+        }
+
+        if (newY < margin)
+        {
+            newY = (cellCount * cellSize) + cellSize * 2;
+        }
+
+        Node *new_head = new Node{newX, newY, NULL};
+
+        new_head->next = head;
+        head = new_head;
+    }
+
+    // Removing Tail as normally we remove Tail from normal Linked List just as it is
     void removeTail()
     {
         if (head == NULL || head->next == NULL)
@@ -59,86 +92,42 @@ public:
         }
 
         Node *temp = head;
-
         while (temp->next->next != NULL)
         {
             temp = temp->next;
         }
 
-        delete temp->next;
+        Node *helper = temp->next;
         temp->next = NULL;
         tail = temp;
-    }
-
-    void AddHead()
-    {
-        int newX = head->x + dirX * cellSize;
-        int newY = head->y + dirY * cellSize;
-
-        // Left boundary → teleport to right
-        if (newX < margin)
-            newX = margin + (cellCount - 1) * cellSize;
-
-        // Right boundary → teleport to left
-        if (newX >= margin + cellCount * cellSize)
-            newX = margin;
-
-        // Top boundary → teleport to bottom
-        if (newY < margin)
-            newY = margin + (cellCount - 1) * cellSize;
-
-        // Bottom boundary → teleport to top
-        if (newY >= margin + cellCount * cellSize)
-            newY = margin;
-
-        Node *newHead = new Node{newX, newY};
-        newHead->next = head;
-        head = newHead;
+        delete helper;
     }
 };
 
-// Food Class
 class Food
 {
 public:
     Vector2 position;
-    Texture2D texture;
-
-    Food()
-    {
-        Image image = LoadImage("C:/raylib_pacman/food.png"); // Loading Image
-
-        ImageResize(&image, cellSize, cellSize);
-        texture = LoadTextureFromImage(image);
-        UnloadImage(image);
-    }
-
-    ~Food()
-    {
-        UnloadTexture(texture);
-    }
 
     void Draw()
     {
-        float scale = 1.0f;
-        DrawTextureEx(texture,
-                      Vector2{position.x * cellSize, position.y * cellSize},
-                      0.0f, scale, WHITE);
+        DrawRectangleRounded(Rectangle{(float)position.x, (float)position.y, (float)cellSize, (float)cellSize}, 1, 0, RED);
     }
-
-    Vector2 GenerateRandompos(Node *head)
+    Vector2 GenerateRandomPos(Node *head)
     {
-        Vector2 pos;
 
-        pos.x = GetRandomValue(margin / cellSize, margin / cellSize + cellCount - 1);
-        pos.y = GetRandomValue(margin / cellSize, margin / cellSize + cellCount - 1);
+        Vector2 pos;
+        int row = GetRandomValue(0, cellCount - 1); // Because our gram has 29 rows
+        int col = GetRandomValue(0, cellCount - 1);
+
+        pos.x = margin + cellSize * col; // in Raylib Coordinates X is horizontal colums wise just Inverse of Matrices
+        pos.y = margin + cellSize * row;
 
         Node *temp = head;
 
         while (temp != NULL)
         {
-            // FIX: compare correctly (pixel vs grid)
-            if (temp->x == pos.x * cellSize && temp->y == pos.y * cellSize)
+            if (temp->x == pos.x && temp->y == pos.y)
             {
                 return Vector2{-1, -1};
             }
@@ -152,115 +141,101 @@ public:
 
 int main()
 {
-    bool gameover = false;
-    double lastTime = 0;
-    double moveDelay = 0.3;
 
-   
-
-    InitWindow(2 * margin + cellCount * cellSize, 2 * margin + cellCount * cellSize, "Snake Game By Kartar Singh");
-    SetTargetFPS(60);
+    InitWindow(margin * 2 + cellCount * cellSize, margin * 2 + cellCount * cellSize, "Snake By Kartar Singh");
+    SetTargetFPS(5 + score / 2);
 
     Snake mysnake;
     Food food;
 
-    food.position = food.GenerateRandompos(mysnake.head);
+    food.position = food.GenerateRandomPos(mysnake.head); // Providing first place for food by Self made random function
 
-    while ((WindowShouldClose() == false))
+    while (WindowShouldClose() == false)
     {
-        BeginDrawing();
-
         // Updating
-        if (((IsKeyPressed(KEY_W)) || (IsKeyPressed(KEY_UP))) && mysnake.dirY != 1)
+        BeginDrawing(); // Start Drawing from here
+
+        if ((IsKeyPressed(KEY_W) || IsKeyPressed(KEY_UP)) && mysnake.dirY != 1)
         {
+            mysnake.dirX = 0;
             mysnake.dirY = -1;
+        }
+
+        if (((IsKeyPressed(KEY_S) || IsKeyPressed(KEY_DOWN))) && mysnake.dirY != -1)
+        {
             mysnake.dirX = 0;
-        }
-        if (((IsKeyPressed(KEY_D)) || (IsKeyPressed(KEY_RIGHT))) && mysnake.dirX != -1)
-        {
-            mysnake.dirX = 1;
-            mysnake.dirY = 0;
-        }
-        if (((IsKeyPressed(KEY_S)) || (IsKeyPressed(KEY_DOWN))) && mysnake.dirY != -1)
-        {
             mysnake.dirY = 1;
-            mysnake.dirX = 0;
         }
-        if (((IsKeyPressed(KEY_A)) || (IsKeyPressed(KEY_LEFT))) && mysnake.dirX != 1)
+
+        if ((IsKeyPressed(KEY_A) || IsKeyPressed(KEY_LEFT)) && mysnake.dirX != 1)
         {
             mysnake.dirX = -1;
             mysnake.dirY = 0;
         }
 
-        double currentTime = GetTime();
-
-        if (gameover != true && currentTime - lastTime >= moveDelay)
+        if ((IsKeyPressed(KEY_D) || IsKeyPressed(KEY_RIGHT)) && mysnake.dirX != -1)
         {
-            mysnake.AddHead(); // Move snake by adding a new head
+            mysnake.dirX = 1;
+            mysnake.dirY = 0;
+        }
 
-            bool check = false;
+        Node *temp = mysnake.head->next;
 
-            Node *temp = mysnake.head->next;
-
-            while (check != true && temp != NULL)
+        bool check = false;
+        while (temp != NULL)
+        {
+            if (temp->x == mysnake.head->x && temp->y == mysnake.head->y)
             {
-                if (mysnake.head->x == temp->x && mysnake.head->y == temp->y)
-                {
-                    check = true;
-                }
-                temp = temp->next;
+                check = true;
             }
+            temp = temp->next;
+        }
 
-            if (check == true)
-            {
-                gameover = true;
-            }
-
-            // ----------------------------
-            // Check if snake ate the food
-            // ----------------------------
-            bool ateFood = (mysnake.head->x == food.position.x * cellSize &&
-                            mysnake.head->y == food.position.y * cellSize);
+        if (check == false)
+        {
+            mysnake.AddHead();
+            // Checking that if snake has eaten food or not
+            bool ateFood = (mysnake.head->x == food.position.x && mysnake.head->y == food.position.y); // Both are in pixels because we have already multiply them with cellSize
 
             if (ateFood == false)
             {
-                mysnake.removeTail(); // Remove tail if no food eaten
+                mysnake.removeTail();
             }
+
             else
             {
-                Vector2 newfoodpos = food.GenerateRandompos(mysnake.head);
 
-                while (newfoodpos.x == -1)
+                Vector2 test = food.GenerateRandomPos(mysnake.head);
+
+                while (test.x == -1)
                 {
-                    newfoodpos = food.GenerateRandompos(mysnake.head);
+                    test = food.GenerateRandomPos(mysnake.head); // Checking if food is appear on snakes body so again generating coorect number and place fo its generating
                 }
 
-                food.position = newfoodpos;
-                score++;
+                food.position = test; // Keeping it equal to food Position
+                score++;              // this means snake has eaten food and we should add score
             }
 
-            lastTime = currentTime; // Reset move timer
+            ClearBackground(Green);
+
+            // Drawing
+            food.Draw();
+            mysnake.Draw();
+
+            DrawRectangleLinesEx(Rectangle{(float)margin, float(margin), (float)(cellCount * cellSize), (float)(cellCount * cellSize)}, 5, BLACK); // Drawing Black Square to give good frame
+
+            DrawText(TextFormat("%i", score), margin, (cellSize * cellCount) + margin, 50, BLACK); // Drawing Score on right Bottom
+            DrawText("RETRO SNAKE", margin, cellSize, 50, BLACK);                                  // DRAWING TEXT Just for showing RETRO SNAKE For Designing
         }
 
-        ClearBackground(Green);
-
-        // Drawing
-        food.Draw();
-        mysnake.Draw();
-        // adjust to match the screenshot
-
-        DrawRectangleLinesEx(Rectangle{(float)margin, (float)margin, (float)(cellCount * cellSize), (float)(cellCount * cellSize)}, 4, BLACK);
-
-        DrawText(TextFormat("%i", score), margin, margin + cellCount * cellSize, 60, BLACK);
-        DrawText("RETRO SNAKE", margin, cellSize, 50, BLACK);
-        if (gameover == true)
+        if (check == true)
         {
             DrawText("GAME OVER", (margin + (cellCount * cellSize) / 2) - 300, margin + (cellCount * cellSize) / 2 - 40, 100, BLACK);
         }
-
         EndDrawing();
     }
 
-    CloseWindow();
+    CloseWindow(); // Closing Window if user press esc or cross sign on window
+
     return 0;
 }
