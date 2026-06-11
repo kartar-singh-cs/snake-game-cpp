@@ -67,7 +67,9 @@ snake-game-cpp/
 │
 ├── snake.cpp         # Full game — Snake and Food classes
 ├── food.png          # Food sprite
-├── screenshots/      # Gameplay screenshots (coming soon)
+├── assets/
+│   ├── gameplay.png  # Gameplay screenshot
+│   └── gameover.png  # Game over screen
 └── README.md
 ```
 
@@ -82,12 +84,13 @@ snake-game-cpp/
 | `A` or `←` | Move left |
 | `D` or `→` | Move right |
 
----
-
 ## 📸 Screenshots
 
-> Coming soon — will be added after next build
+### Gameplay
+![Gameplay](assets/gameplay.png)
 
+### Game Over
+![Game Over](assets/gameover.png)
 ---
 
 ## ⚙️ How to Run
